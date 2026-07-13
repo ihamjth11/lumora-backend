@@ -3,11 +3,21 @@ const router = express.Router();
 const User = require("../models/User");
 const verifyToken = require("../middleware/authMiddleware");
 
-// ---------- CHECK USERNAME AVAILABILITY ----------
-router.get("/check-username/:username", async (req, res) => {
+// ---------- CHECK USERNAME AVAILABILITY (Protected — self-exclude) ----------
+router.get("/check-username/:username", verifyToken, async (req, res) => {
   try {
     const existing = await User.findOne({ username: req.params.username.toLowerCase() });
-    res.json({ available: !existing });
+
+    if (!existing) {
+      return res.json({ available: true });
+    }
+
+    // If the existing username belongs to the current user, treat as available
+    if (existing.firebaseUid === req.user.uid) {
+      return res.json({ available: true });
+    }
+
+    return res.json({ available: false });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -56,11 +66,29 @@ router.get("/me", verifyToken, async (req, res) => {
 // ---------- UPDATE MY PROFILE (Protected) ----------
 router.put("/me", verifyToken, async (req, res) => {
   try {
+    const { name, username, bio, website, location, avatar } = req.body;
+
+    if (username) {
+      const existingUsername = await User.findOne({ username: username.toLowerCase() });
+      if (existingUsername && existingUsername.firebaseUid !== req.user.uid) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+    }
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (username !== undefined) updateData.username = username.toLowerCase();
+    if (bio !== undefined) updateData.bio = bio;
+    if (website !== undefined) updateData.website = website;
+    if (location !== undefined) updateData.location = location;
+    if (avatar !== undefined) updateData.avatar = avatar;
+
     const updated = await User.findOneAndUpdate(
       { firebaseUid: req.user.uid },
-      { $set: req.body },
+      { $set: updateData },
       { new: true }
     );
+
     res.json(updated);
   } catch (error) {
     res.status(500).json({ message: error.message });

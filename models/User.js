@@ -32,10 +32,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    avatar: {
+      type: String,
+      default: "🧑‍💻",
+    },
     bio: {
       type: String,
       default: "",
       maxlength: 150,
+    },
+    website: {
+      type: String,
+      default: "",
+    },
+    location: {
+      type: String,
+      default: "",
     },
     interests: {
       type: [String],
