@@ -66,7 +66,7 @@ router.get("/me", verifyToken, async (req, res) => {
 // ---------- UPDATE MY PROFILE (Protected) ----------
 router.put("/me", verifyToken, async (req, res) => {
   try {
-    const { name, username, bio, website, location, avatar } = req.body;
+    const { name, username, bio, website, location, avatar, photoURL } = req.body;
 
     if (username) {
       const existingUsername = await User.findOne({ username: username.toLowerCase() });
@@ -82,6 +82,7 @@ router.put("/me", verifyToken, async (req, res) => {
     if (website !== undefined) updateData.website = website;
     if (location !== undefined) updateData.location = location;
     if (avatar !== undefined) updateData.avatar = avatar;
+    if (photoURL !== undefined) updateData.photoURL = photoURL;
 
     const updated = await User.findOneAndUpdate(
       { firebaseUid: req.user.uid },
