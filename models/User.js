@@ -53,6 +53,14 @@ const userSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    followers: {
+      type: [String], // array of firebaseUid who follow this user
+      default: [],
+    },
+    following: {
+      type: [String], // array of firebaseUid this user follows
+      default: [],
+    },
     followersCount: {
       type: Number,
       default: 0,

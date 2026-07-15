@@ -12,7 +12,6 @@ router.get("/check-username/:username", verifyToken, async (req, res) => {
       return res.json({ available: true });
     }
 
-    // If the existing username belongs to the current user, treat as available
     if (existing.firebaseUid === req.user.uid) {
       return res.json({ available: true });
     }
@@ -91,6 +90,82 @@ router.put("/me", verifyToken, async (req, res) => {
     );
 
     res.json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------- GET USER PROFILE BY USERNAME (Public — for viewing other profiles) ----------
+router.get("/profile/:username", async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username.toLowerCase() })
+      .select("-email");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------- SEARCH USERS (Public) ----------
+router.get("/search/:query", async (req, res) => {
+  try {
+    const query = req.params.query.toLowerCase();
+    const users = await User.find({
+      $or: [
+        { username: { $regex: query, $options: "i" } },
+        { name: { $regex: query, $options: "i" } },
+      ],
+    })
+      .select("name username avatar photoURL bio")
+      .limit(20);
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------- FOLLOW / UNFOLLOW USER (Protected) ----------
+router.post("/follow/:targetUid", verifyToken, async (req, res) => {
+  try {
+    const myUid = req.user.uid;
+    const targetUid = req.params.targetUid;
+
+    if (myUid === targetUid) {
+      return res.status(400).json({ message: "You cannot follow yourself" });
+    }
+
+    const me = await User.findOne({ firebaseUid: myUid });
+    const target = await User.findOne({ firebaseUid: targetUid });
+
+    if (!me || !target) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const alreadyFollowing = me.following.includes(targetUid);
+
+    if (alreadyFollowing) {
+      // Unfollow
+      me.following = me.following.filter((id) => id !== targetUid);
+      target.followers = target.followers.filter((id) => id !== myUid);
+    } else {
+      // Follow
+      me.following.push(targetUid);
+      target.followers.push(myUid);
+    }
+
+    me.followingCount = me.following.length;
+    target.followersCount = target.followers.length;
+
+    await me.save();
+    await target.save();
+
+    res.json({
+      following: !alreadyFollowing,
+      followersCount: target.followersCount,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
