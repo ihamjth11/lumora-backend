@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require("multer");
 const cloudinary = require("../config/cloudinary");
 const verifyToken = require("../middleware/authMiddleware");
+const moderateContent = require("../utils/moderateImage");
 
 const storage = multer.memoryStorage();
 const upload = multer({
@@ -27,6 +28,13 @@ router.post("/profile-photo", verifyToken, upload.single("photo"), async (req, r
       transformation: [{ width: 500, height: 500, crop: "fill", gravity: "face" }],
     });
 
+    // Moderation check
+    const modResult = await moderateContent(result.secure_url, false);
+    if (!modResult.safe) {
+      await cloudinary.uploader.destroy(result.public_id);
+      return res.status(400).json({ message: modResult.reason });
+    }
+
     res.json({ url: result.secure_url });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -48,6 +56,15 @@ router.post("/post-media", verifyToken, upload.single("media"), async (req, res)
       folder: "lumora/posts",
       resource_type: isVideo ? "video" : "image",
     });
+
+    // Moderation check (images only for now)
+    const modResult = await moderateContent(result.secure_url, isVideo);
+    if (!modResult.safe) {
+      await cloudinary.uploader.destroy(result.public_id, {
+        resource_type: isVideo ? "video" : "image",
+      });
+      return res.status(400).json({ message: modResult.reason });
+    }
 
     res.json({
       url: result.secure_url,
@@ -73,6 +90,15 @@ router.post("/story-media", verifyToken, upload.single("media"), async (req, res
       folder: "lumora/stories",
       resource_type: isVideo ? "video" : "image",
     });
+
+    // Moderation check
+    const modResult = await moderateContent(result.secure_url, isVideo);
+    if (!modResult.safe) {
+      await cloudinary.uploader.destroy(result.public_id, {
+        resource_type: isVideo ? "video" : "image",
+      });
+      return res.status(400).json({ message: modResult.reason });
+    }
 
     res.json({
       url: result.secure_url,
