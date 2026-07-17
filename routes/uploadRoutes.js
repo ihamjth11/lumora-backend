@@ -7,7 +7,7 @@ const verifyToken = require("../middleware/authMiddleware");
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max (video-க்கும் support பண்ண)
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 // ---------- UPLOAD PROFILE PHOTO (Protected) ----------
@@ -46,6 +46,31 @@ router.post("/post-media", verifyToken, upload.single("media"), async (req, res)
 
     const result = await cloudinary.uploader.upload(dataURI, {
       folder: "lumora/posts",
+      resource_type: isVideo ? "video" : "image",
+    });
+
+    res.json({
+      url: result.secure_url,
+      mediaType: isVideo ? "video" : "image",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------- UPLOAD STORY MEDIA (Photo or Video, Protected) ----------
+router.post("/story-media", verifyToken, upload.single("media"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const isVideo = req.file.mimetype.startsWith("video/");
+    const b64 = Buffer.from(req.file.buffer).toString("base64");
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: "lumora/stories",
       resource_type: isVideo ? "video" : "image",
     });
 
