@@ -38,11 +38,10 @@ const moderateContent = async (mediaUrl, isVideo = false) => {
     }
 
     return { safe: true };
-  } catch (error) {
+ } catch (error) {
     console.error("Moderation check failed:", error.message);
-    // Fail-open: if the moderation service itself errors, allow the content through
-    // (you can change this to fail-closed if stricter policy is needed)
-    return { safe: true };
+    // Fail-closed: if the moderation service errors, block the content to be safe
+    return { safe: false, reason: "Unable to verify content safety. Please try again." };
   }
 };
 
