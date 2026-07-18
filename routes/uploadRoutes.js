@@ -108,5 +108,39 @@ router.post("/story-media", verifyToken, upload.single("media"), async (req, res
     res.status(500).json({ message: error.message });
   }
 });
+// ---------- UPLOAD CHAT MEDIA (Photo/Video/Audio, Protected) ----------
+router.post("/chat-media", verifyToken, upload.single("media"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    const isAudio = req.file.mimetype.startsWith("audio/");
+    const isVideo = req.file.mimetype.startsWith("video/");
+    const b64 = Buffer.from(req.file.buffer).toString("base64");
+    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
+
+    const result = await cloudinary.uploader.upload(dataURI, {
+      folder: "lumora/chat",
+      resource_type: isAudio || isVideo ? "video" : "image",
+    });
+
+    let mediaType = "image";
+    if (isAudio) mediaType = "audio";
+    else if (isVideo) mediaType = "video";
+
+    if (mediaType === "image") {
+      const modResult = await moderateContent(result.secure_url, false);
+      if (!modResult.safe) {
+        await cloudinary.uploader.destroy(result.public_id);
+        return res.status(400).json({ message: modResult.reason });
+      }
+    }
+
+    res.json({ url: result.secure_url, mediaType });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 module.exports = router;

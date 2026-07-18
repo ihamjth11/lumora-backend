@@ -85,8 +85,11 @@ router.get("/:conversationId", verifyToken, async (req, res) => {
 // ---------- SEND MESSAGE (Protected) ----------
 router.post("/:conversationId", verifyToken, async (req, res) => {
   try {
-    const { text } = req.body;
-    if (!text || !text.trim()) {
+    const { text, mediaUrl, mediaType } = req.body;
+    const hasText = text && text.trim();
+    const hasMedia = mediaUrl && mediaType;
+
+    if (!hasText && !hasMedia) {
       return res.status(400).json({ message: "Message cannot be empty" });
     }
 
@@ -98,11 +101,13 @@ router.post("/:conversationId", verifyToken, async (req, res) => {
     const message = new Message({
       conversation: conversation._id,
       senderFirebaseUid: req.user.uid,
-      text: text.trim(),
+      text: hasText ? text.trim() : "",
+      mediaUrl: hasMedia ? mediaUrl : "",
+      mediaType: hasMedia ? mediaType : "none",
     });
     await message.save();
 
-    conversation.lastMessage = text.trim();
+    conversation.lastMessage = hasText ? text.trim() : (mediaType === "audio" ? "🎤 Voice message" : mediaType === "video" ? "🎬 Video" : "📷 Photo");
     conversation.lastMessageAt = new Date();
     conversation.lastMessageSender = req.user.uid;
     await conversation.save();
