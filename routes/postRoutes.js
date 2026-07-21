@@ -127,4 +127,39 @@ router.delete("/:id", verifyToken, async (req, res) => {
   }
 });
 
+// ---------- EDIT POST CAPTION (Protected — only own post) ----------
+router.put("/:id", verifyToken, async (req, res) => {
+  try {
+    const { caption } = req.body;
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    if (post.authorFirebaseUid !== req.user.uid) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    post.caption = caption || "";
+    await post.save();
+
+    res.json({ message: "Post updated", post });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------- GET SINGLE POST (Public — for modal view) ----------
+router.get("/single/:id", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate("author", "name username avatar photoURL");
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+    res.json(post);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
