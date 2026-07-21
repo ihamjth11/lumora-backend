@@ -113,15 +113,25 @@ router.get("/profile/:username", async (req, res) => {
 router.get("/search/:query", async (req, res) => {
   try {
     const query = req.params.query.toLowerCase();
-    const users = await User.find({
-      $or: [
-        { username: { $regex: query, $options: "i" } },
-        { name: { $regex: query, $options: "i" } },
+
+    const usernameMatches = await User.find({
+      username: { $regex: "^" + query, $options: "i" },
+    }).select("name username avatar photoURL bio");
+
+    const otherMatches = await User.find({
+      $and: [
+        { username: { $not: { $regex: "^" + query, $options: "i" } } },
+        {
+          $or: [
+            { username: { $regex: query, $options: "i" } },
+            { name: { $regex: query, $options: "i" } },
+          ],
+        },
       ],
-    })
-      .select("name username avatar photoURL bio")
-      .limit(20);
-    res.json(users);
+    }).select("name username avatar photoURL bio");
+
+    const results = [...usernameMatches, ...otherMatches].slice(0, 20);
+    res.json(results);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
