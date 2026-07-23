@@ -161,5 +161,40 @@ router.get("/single/:id", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+// ---------- TOGGLE SAVE / UNSAVE POST (Protected) ----------
+router.post("/:id/save", verifyToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
 
+    const uid = req.user.uid;
+    const alreadySaved = post.savedBy.includes(uid);
+
+    if (alreadySaved) {
+      post.savedBy = post.savedBy.filter((id) => id !== uid);
+    } else {
+      post.savedBy.push(uid);
+    }
+
+    await post.save();
+    res.json({ saved: !alreadySaved });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// ---------- GET MY SAVED POSTS (Protected) ----------
+router.get("/saved/me", verifyToken, async (req, res) => {
+  try {
+    const posts = await Post.find({ savedBy: req.user.uid })
+      .sort({ updatedAt: -1 })
+      .populate("author", "name username avatar photoURL");
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 module.exports = router;

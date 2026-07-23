@@ -42,6 +42,10 @@ const postSchema = new mongoose.Schema(
       type: [String], // array of firebaseUid
       default: [],
     },
+    savedBy: {
+      type: [String], // array of firebaseUid who saved this post
+      default: [],
+    },
     commentsCount: {
       type: Number,
       default: 0,
